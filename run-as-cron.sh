@@ -20,10 +20,6 @@ if [ "$1" == "-h" -o "$1" == "--help" ]; then
     exit 0
 fi
 
-#if [ $(whoami) != "root" ]; then
-#    echo "Only root is supported at the moment"
-#    exit 1
-#fi
 
 # This file should contain the cron environment.
 cron_env="`echo ~/cron-env`"
