@@ -20,12 +20,13 @@ if [ "$1" == "-h" -o "$1" == "--help" ]; then
     exit 0
 fi
 
+cron_env_file=$HOME/.config/run-as-cron.env
 
 # This file should contain the cron environment.
-cron_env="`echo ~/cron-env`"
+cron_env="$(echo $cron_env_file)"
 if [ ! -f "$cron_env" ]; then
     echo "Unable to find $cron_env"
-    echo "To generate it, run crontab -e and add \"* * * * * /usr/bin/env > ~/cron-env\" and wait a minute to generate it"
+    echo "To generate it, run crontab -e and add \"* * * * * /usr/bin/env > $cron_env_file\" and wait a minute to generate it"
     echo "then run crontab -e to remove the line"
     exit 0
 fi
