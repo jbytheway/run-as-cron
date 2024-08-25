@@ -38,18 +38,15 @@ fi
 # https://stackoverflow.com/questions/10748703/iterate-over-lines-instead-of-words-in-a-for-loop-of-shell-script
 OLDIFS="$IFS"
 IFS=$'\n' # bash specific
-env_string="/usr/bin/env -i "
+env_array=("/usr/bin/env" "-i")
 for envi in $(cat "$cron_env"); do
-   env_string="${env_string} \"$envi\" "
-   echo $env_string
+  env_array+=("$envi")
 done
 IFS="$OLDIFS"
+printf '%s\n' "$env_array"
 
 
-cmd_string=""
-for arg in "$@"; do
-    cmd_string="${cmd_string} \"${arg}\" "
-done
+cmd_string="$*"
 
 # Which shell should we use?
 the_shell=$(grep -E "^SHELL=" ~/cron-env | sed 's/SHELL=//')
@@ -60,7 +57,7 @@ echo "Running with $the_shell the following command: $cmd_string"
 # and do not provide any input (so that the command is executed without an attached terminal)
 so=$(mktemp "/tmp/fakecron.out.XXXX")
 se=$(mktemp "/tmp/fakecron.err.XXXX")
-"$the_shell" -c "$env_string $cmd_string" >"$so" 2>"$se" < /dev/null
+"${env_array[@]}" "$the_shell" -c "$cmd_string" >"$so" 2>"$se" < /dev/null
 
 echo -e "Done. Here is \033[1mstdout\033[0m:"
 cat "$so"
