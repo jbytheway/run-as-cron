@@ -9,6 +9,10 @@
 #  * without an attached input terminal
 #  * in a non-interactive shell
 
+set -e
+set -u
+set -o pipefail
+
 function usage(){
     echo "$0 - Run a script or a command as it would be in a cron job, then display its output"
     echo "Usage:"
@@ -23,40 +27,52 @@ fi
 cron_env_file=$HOME/.config/run-as-cron.env
 
 # This file should contain the cron environment.
-cron_env="$(echo $cron_env_file)"
-if [ ! -f "$cron_env" ]; then
+if [ ! -f "$cron_env_file" ]; then
     echo "Unable to find $cron_env"
     echo "To generate it, run crontab -e and add \"* * * * * /usr/bin/env > $cron_env_file\" and wait a minute to generate it"
     echo "then run crontab -e to remove the line"
     exit 0
 fi
 
-# It will be a nightmare to expand "$@" inside a shell -c argument.
-# Let's rather generate a string where we manually expand-and-quote the arguments
+the_shell=/bin/sh
+dir=$HOME
 
-
-# https://stackoverflow.com/questions/10748703/iterate-over-lines-instead-of-words-in-a-for-loop-of-shell-script
-OLDIFS="$IFS"
-IFS=$'\n' # bash specific
 env_array=("/usr/bin/env" "-i")
-for envi in $(cat "$cron_env"); do
+while IFS= read -r envi ; do
+  var_name=${envi%%=*}
+  if [ "$var_name" = "_" ]
+  then
+    continue
+  fi
+  if [ "$var_name" = "SHELL" ]
+  then
+    the_shell=${envi#*=}
+  fi
+  if [ "$var_name" = "PWD" ]
+  then
+    dir=${envi#*=}
+  fi
   env_array+=("$envi")
-done
-IFS="$OLDIFS"
-printf '%s\n' "$env_array"
+done < "$cron_env_file"
+
+printf 'Chosen shell: %s\nChosen working directory: %s\n' "$the_shell" "$dir"
+printf 'Environment wrapper:\n'
+printf '%s ' "${env_array[@]}"
+echo
 
 
 cmd_string="$*"
 
 # Which shell should we use?
-the_shell=$(grep -E "^SHELL=" ~/cron-env | sed 's/SHELL=//')
+the_shell=$(grep -E "^SHELL=" "$cron_env_file" | sed 's/SHELL=//')
 echo "Running with $the_shell the following command: $cmd_string"
 
 
 # Let's route the output in a file
 # and do not provide any input (so that the command is executed without an attached terminal)
-so=$(mktemp "/tmp/fakecron.out.XXXX")
-se=$(mktemp "/tmp/fakecron.err.XXXX")
+so=$(mktemp "/tmp/run-as-cron.out.XXXX")
+se=$(mktemp "/tmp/run-as-cron.err.XXXX")
+cd "$dir"
 "${env_array[@]}" "$the_shell" -c "$cmd_string" >"$so" 2>"$se" < /dev/null
 
 echo -e "Done. Here is \033[1mstdout\033[0m:"
